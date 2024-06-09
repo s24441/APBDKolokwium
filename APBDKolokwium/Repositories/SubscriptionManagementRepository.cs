@@ -69,8 +69,6 @@ namespace APBDKolokwium.Repositories
 
             var subscription = await _context
                 .Subscriptions
-                .Include(e => e.Sales)
-                .Include(e => e.Payments)
                 .FirstOrDefaultAsync(s => s.IdSubscription == payment.IdSubscription);
 
             if (subscription == null)
@@ -79,10 +77,10 @@ namespace APBDKolokwium.Repositories
             if (subscription.EndTime < DateTime.Now)
                 throw new Exception("Subscription is inactive");
 
-            var dateFrom = subscription.Sales.MaxBy(s => s.CreatedAt)?.CreatedAt ?? DateTime.MinValue;
+            var dateFrom = await _context.Sales.Where(s => s.IdSubscription == payment.IdSubscription).Select(s => s.CreatedAt).MaxAsync();
             var dateTo = dateFrom.AddMonths(subscription.RenewalPeriod);
 
-            if (subscription.Payments.Any(p => p.Date >= dateFrom && p.Date <= dateTo))
+            if (_context.Payments.Any(p => p.IdSubscription == payment.IdSubscription && p.Date >= dateFrom && p.Date <= dateTo))
                 throw new Exception("Subscription already payed");
 
             if (payment.Payment != subscription.Price * (1 - discount/100))
